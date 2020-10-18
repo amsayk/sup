@@ -5,7 +5,6 @@ import akka.http.scaladsl.model.StatusCode
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Directives.{path => akkaPath, _}
 import akka.http.scaladsl.server.Route
-import cats.effect.Effect
 import cats.syntax.functor._
 import cats.syntax.reducible._
 import cats.~>
@@ -18,6 +17,10 @@ import scala.concurrent.Future
 import scala.util.Failure
 import scala.util.Success
 import akka.http.scaladsl.model.HttpRequest
+import cats.effect.Async
+import cats.effect.std.Dispatcher
+import cats.effect.Resource
+import cats.effect.Sync
 
 object akkahttp {
 
@@ -26,7 +29,7 @@ object akkahttp {
     * if it's sick, return ServiceUnavailable (Ok otherwise). See [[healthCheckResponse]]
     * for an alternative that doesn't provide a route matcher.
    **/
-  def healthCheckRoutes[F[_]: Effect, H[_]: Reducible](
+  def healthCheckRoutes[F[_]: Async, H[_]: Reducible](
     healthCheck: HealthCheck[F, H],
     path: String = "health-check"
   )(
@@ -34,9 +37,19 @@ object akkahttp {
   ): Route =
     akkaPath(path) {
       get {
-        onComplete(Effect[F].toIO(healthCheckResponse(healthCheck)).unsafeToFuture()) {
-          case Success(response) => complete(response)
-          case Failure(error)    => failWith(error)
+        def toRoute(r: Resource[F, Route]): Route = ??? //how?
+
+        toRoute {
+          Dispatcher[F, Route] { runner =>
+            Resource.liftF {
+              Sync[F].delay {
+                onComplete(runner.unsafeToFuture(healthCheckResponse(healthCheck))) {
+                  case Success(response) => complete(response)
+                  case Failure(error)    => failWith(error)
+                }
+              }
+            }
+          }
         }
       }
     }
