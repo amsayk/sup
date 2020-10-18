@@ -1,12 +1,12 @@
 package sup
 
 import cats.data.{EitherK, Tuple2K}
-import cats.effect.Concurrent
 import cats.{~>, Applicative, ApplicativeError, Apply, Eq, Functor, Id, Monoid, NonEmptyParallel}
 import cats.implicits._
 import cats.effect.implicits._
 import cats.tagless.FunctorK
 import cats.tagless.implicits._
+import cats.effect.kernel.GenConcurrent
 
 /**
   * A health check.
@@ -95,9 +95,12 @@ object HealthCheck {
     *
     * If H and I are the same, the result's EitherK can be combined to a single H/I container using `mods.mergeEitherK`.
     * */
-  def race[F[_]: Concurrent, H[_], I[_]](a: HealthCheck[F, H], b: HealthCheck[F, I]): HealthCheck[F, EitherK[H, I, ?]] =
+  def race[F[_]: GenConcurrent[*[_], E], E, H[_], I[_]](
+    a: HealthCheck[F, H],
+    b: HealthCheck[F, I]
+  ): HealthCheck[F, EitherK[H, I, ?]] =
     liftF {
-      a.check.race(b.check).map(e => HealthResult(EitherK(e.bimap(_.value, _.value))))
+      GenConcurrent[F, E].race(a.check, b.check).map(e => HealthResult(EitherK(e.bimap(_.value, _.value))))
     }
 
   implicit def functorK[F[_]: Functor]: FunctorK[HealthCheck[F, ?[_]]] = new FunctorK[HealthCheck[F, ?[_]]] {
