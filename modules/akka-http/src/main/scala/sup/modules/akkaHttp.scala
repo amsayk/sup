@@ -37,7 +37,13 @@ object akkahttp {
   ): Route =
     akkaPath(path) {
       get {
-        def toRoute(r: Resource[F, Route]): Route = ??? //how?
+        def toRoute(r: Resource[F, Route]): Route = req => {
+          def toFuture: F ~> Future = ??? //if we had this, we might as well use it directly in the call to `onComplete`
+
+          toFuture {
+            r.use(routeResource => Async[F].fromFuture(Sync[F].delay(routeResource(req))))
+          }
+        }
 
         toRoute {
           Dispatcher[F, Route] { runner =>
