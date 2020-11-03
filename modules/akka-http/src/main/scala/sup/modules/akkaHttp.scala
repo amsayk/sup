@@ -20,7 +20,6 @@ import akka.http.scaladsl.model.HttpRequest
 import cats.effect.Async
 import cats.effect.std.Dispatcher
 import cats.effect.Resource
-import cats.effect.Sync
 
 object akkahttp {
 
@@ -34,27 +33,13 @@ object akkahttp {
     path: String = "health-check"
   )(
     implicit marshaller: ToEntityMarshaller[HealthResult[H]]
-  ): Route =
-    akkaPath(path) {
-      get {
-        def toRoute(r: Resource[F, Route]): Route = req => {
-          def toFuture: F ~> Future = ??? //if we had this, we might as well use it directly in the call to `onComplete`
-
-          toFuture {
-            r.use(routeResource => Async[F].fromFuture(Sync[F].delay(routeResource(req))))
-          }
-        }
-
-        toRoute {
-          Dispatcher[F, Route] { runner =>
-            Resource.liftF {
-              Sync[F].delay {
-                onComplete(runner.unsafeToFuture(healthCheckResponse(healthCheck))) {
-                  case Success(response) => complete(response)
-                  case Failure(error)    => failWith(error)
-                }
-              }
-            }
+  ): Resource[F, Route] =
+    Dispatcher[F].map { dispatcher =>
+      akkaPath(path) {
+        get {
+          onComplete(dispatcher.unsafeToFuture(healthCheckResponse(healthCheck))) {
+            case Success(response) => complete(response)
+            case Failure(error)    => failWith(error)
           }
         }
       }
