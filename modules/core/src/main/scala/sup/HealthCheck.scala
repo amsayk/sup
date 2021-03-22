@@ -95,12 +95,14 @@ object HealthCheck {
     *
     * If H and I are the same, the result's EitherK can be combined to a single H/I container using `mods.mergeEitherK`.
     * */
-  def race[F[_]: GenConcurrent[*[_], E], E, H[_], I[_]](
+  def race[F[_], H[_], I[_]](
     a: HealthCheck[F, H],
     b: HealthCheck[F, I]
+  )(
+    implicit F: GenConcurrent[F, _]
   ): HealthCheck[F, EitherK[H, I, ?]] =
     liftF {
-      GenConcurrent[F, E].race(a.check, b.check).map(e => HealthResult(EitherK(e.bimap(_.value, _.value))))
+      GenConcurrent[F].race(a.check, b.check).map(e => HealthResult(EitherK(e.bimap(_.value, _.value))))
     }
 
   implicit def functorK[F[_]: Functor]: FunctorK[HealthCheck[F, ?[_]]] = new FunctorK[HealthCheck[F, ?[_]]] {

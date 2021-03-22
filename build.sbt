@@ -1,7 +1,7 @@
 val Scala_212 = "2.12.12"
 val Scala_213 = "2.13.3"
 
-val catsEffectVersion = "3.0.0-M2"
+val catsEffectVersion = "3.0.0-RC3"
 val catsTaglessVersion = "0.11"
 val doobieVersion = "0.9.2"
 val catsVersion = "2.2.0"
@@ -171,7 +171,7 @@ val microsite = project
       "org.http4s" %% "http4s-circe" % http4sVersion,
       "de.heikoseeberger" %% "akka-http-circe" % "1.29.1"
     ),
-    skip in publish := true,
+    publish / skip := true,
     buildInfoPackage := "sup.buildinfo",
     micrositeAnalyticsToken := "UA-55943015-9",
     buildInfoKeys := Seq[BuildInfoKey](lastStableVersion),
@@ -180,7 +180,7 @@ val microsite = project
       .map(_.ref.value.tail)
       .getOrElse(throw new Exception("There's no output from dynver!")),
     mdocVariables := Map(
-      "SCALA_VERSIONS" -> enumerateAnd((crossScalaVersions in core).value.toList.map(dropMinor))
+      "SCALA_VERSIONS" -> enumerateAnd((core / crossScalaVersions).value.toList.map(dropMinor))
     )
   )
   .enablePlugins(MicrositesPlugin)
@@ -191,5 +191,5 @@ val sup =
   project
     .in(file("."))
     .settings(commonSettings)
-    .settings(skip in publish := true, crossScalaVersions := List(), mimaPreviousArtifacts := Set.empty)
+    .settings(publish / skip := true, crossScalaVersions := List(), mimaPreviousArtifacts := Set.empty)
     .aggregate((microsite :: allModules).map(x => x: ProjectReference): _*)
